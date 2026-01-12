@@ -6,13 +6,24 @@ from config import DEVICE, DATA_PATH
 
 print(f"Используемое устройство: {DEVICE}")
 
+data_dir = os.path.dirname(DATA_PATH)
+if not os.path.exists(data_dir):
+    print(f"Создание директории {data_dir}...")
+    os.makedirs(data_dir, exist_ok=True)
+
 if not os.path.exists(DATA_PATH):
     print("Скачивание датасета...")
-    urllib.request.urlretrieve(
-        "http://www.cs.toronto.edu/~nitish/unsupervised_video/mnist_test_seq.npy",
-        DATA_PATH
-    )
-    print("Датасет скачан!")
+    try:
+        urllib.request.urlretrieve(
+            "http://www.cs.toronto.edu/~nitish/unsupervised_video/mnist_test_seq.npy",
+            DATA_PATH
+        )
+        print("Датасет скачан!")
+    except Exception as e:
+        print(f"Ошибка при скачивании датасета: {e}")
+        print("Пожалуйста, скачайте датасет вручную:")
+        print("wget http://www.cs.toronto.edu/~nitish/unsupervised_video/mnist_test_seq.npy -P data/")
+        exit(1)
 
 data = np.load(DATA_PATH)
 print(f"Размер датасета: {data.shape}")
