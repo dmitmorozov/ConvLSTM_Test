@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from data_loader import data_tensor
@@ -103,8 +102,10 @@ def test_multistep_model(model, data_tensor, seq_idx=None, input_len=10, pred_le
 
     fig, axes = plt.subplots(3, 5, figsize=(15, 9))
     for i in range(5):
-        if i < len(input_np):
-            axes[0, i].imshow(input_np[i], cmap='gray')
+        if i < len(input_np) and i == 0:
+            axes[0, i].imshow(input_np[-1], cmap='gray')
+        elif i < len(input_np) and i > 0:
+            axes[0, i].imshow(pred_np[i - 1], cmap='gray')
         axes[0, i].set_title(f"Вход {i + 1}")
         axes[0, i].axis('off')
 
@@ -132,7 +133,7 @@ def create_prediction_gif(input_frames, target_frames, pred_frames, seq_idx, fps
     """Создание GIF анимации предсказаний"""
     fig, axes = plt.subplots(1, 3, figsize=(9, 3))
 
-    im1 = axes[0].imshow(input_frames[0], cmap='gray', vmin=0, vmax=1)
+    im1 = axes[0].imshow(input_frames[-1], cmap='gray', vmin=0, vmax=1)
     im2 = axes[1].imshow(target_frames[0], cmap='gray', vmin=0, vmax=1)
     im3 = axes[2].imshow(pred_frames[0], cmap='gray', vmin=0, vmax=1)
 
@@ -145,7 +146,7 @@ def create_prediction_gif(input_frames, target_frames, pred_frames, seq_idx, fps
 
     def update(frame):
         if frame < len(input_frames):
-            im1.set_array(input_frames[frame])
+            im1.set_array(pred_frames[frame-1])
         else:
             im1.set_array(input_frames[-1])
 

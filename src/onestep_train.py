@@ -5,11 +5,11 @@ import time
 from tqdm import tqdm
 from data_loader import data_tensor, split_data
 from models import ConvLSTMOneStep
-from visualization import plot_losses, visualize_predictions_comparison
+from visualization import plot_losses, visualize_predictions_comparison_one_step
 from config import DEVICE, ONESTEP_CONFIG
 
 def train_onestep(epochs=50, batch_size=8, learning_rate=0.001,
-                                 visualize_every=5, plot_every=10, train_ratio=0.8):
+                                 visualize_every=5, plot_every=10, train_ratio=(0.7, 0.15, 0.15)):
     """Обучение одношаговой модели"""
 
     print("=" * 70)
@@ -21,29 +21,37 @@ def train_onestep(epochs=50, batch_size=8, learning_rate=0.001,
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
 
-    train_data, test_data, _, _ = split_data(data_tensor, train_ratio)
+    train_data, val_data, test_data, _, _, _ = split_data(data_tensor, train_ratio)
 
     train_losses = []
     epoch_train_losses = []
     epoch_test_losses = []
 
-    test_input = data_tensor[:10, :1, :, :]
-    test_target = data_tensor[10:20, :1, :, :]
+    test_input = data_tensor[:10, 0, :, :]
+    test_target = data_tensor[1:11, 0, :, :]
 
     print("\n  Начинаем обучение...")
     print(f"Размер батча: {batch_size}")
     print(f"Learning rate: {learning_rate}")
+    n_samples = train_data.shape[1]
+    indices = torch.randperm(n_samples)
 
     for epoch in range(epochs):
         model.train()
         epoch_start = time.time()
         epoch_train_loss = 0
 
-        n_iterations = min(500, train_data.shape[1] // batch_size)
+        n_iterations = train_data.shape[1] // batch_size
         pbar = tqdm(range(n_iterations), desc=f"Эпоха {epoch+1}/{epochs}")
 
         for i in pbar:
-            batch_idx = torch.randint(0, train_data.shape[1], (batch_size,))
+            start_idx = i * batch_size
+            end_idx = min(start_idx + batch_size, n_samples)
+            if start_idx >= n_samples:  # Re-shuffle for next epoch
+                indices = torch.randperm(n_samples)
+                start_idx = 0
+                end_idx = batch_size
+            batch_idx = indices[start_idx:end_idx]
 
             input_batch = train_data[:10, batch_idx, :, :]
             target_batch = train_data[1:11, batch_idx, :, :]
@@ -69,35 +77,36 @@ def train_onestep(epochs=50, batch_size=8, learning_rate=0.001,
 
 
         model.eval()
-        epoch_test_loss = 0
-        test_iterations = min(100, test_data.shape[1] // batch_size)
+        epoch_val_loss = 0
+        val_iterations = val_data.shape[1] // batch_size
 
         with torch.no_grad():
-            for i in range(test_iterations):
-                # Случайный батч из test данных
-                batch_idx = torch.randint(0, test_data.shape[1], (batch_size,))
+            for i in range(val_iterations):
+                start_idx = i * batch_size
+                end_idx = min(start_idx + batch_size, val_data.shape[1])
+                batch_idx = torch.arange(start_idx, end_idx)
 
-                input_batch = test_data[:10, batch_idx, :, :]
-                target_batch = test_data[1:11, batch_idx, :, :]
+                input_batch = val_data[:10, batch_idx, :, :]
+                target_batch = val_data[1:11, batch_idx, :, :]
 
                 predictions = model(input_batch)
                 loss = criterion(predictions, target_batch)
-                epoch_test_loss += loss.item()
+                epoch_val_loss += loss.item()
 
         avg_epoch_train_loss = epoch_train_loss / n_iterations
         epoch_train_losses.append(avg_epoch_train_loss)
-        avg_epoch_test_loss = epoch_test_loss / test_iterations
+        avg_epoch_test_loss = epoch_val_loss / val_iterations
         epoch_test_losses.append(avg_epoch_test_loss)
         epoch_time = time.time() - epoch_start
 
         print(f"Эпоха {epoch + 1} завершена:")
         print(f"Train loss: {avg_epoch_train_loss:.6f}")
-        print(f"Test loss:  {avg_epoch_test_loss:.6f}")
+        print(f"Val loss:  {avg_epoch_test_loss:.6f}")
         print(f"Время: {epoch_time:.1f} сек")
 
         if (epoch + 1) % visualize_every == 0:
             print(f"\nВизуализация результатов эпохи {epoch + 1}...")
-            _ = visualize_predictions_comparison(
+            _ = visualize_predictions_comparison_one_step(
                 model, test_input, test_target,
                 model_name="Одношаговая модель",
                 epoch=epoch + 1
@@ -120,10 +129,9 @@ def train_onestep(epochs=50, batch_size=8, learning_rate=0.001,
 if __name__ == "__main__":
     onestep_model, onestep_iter_losses, onestep_epoch_train, onestep_epoch_test = train_onestep(
         epochs=ONESTEP_CONFIG['epochs'],
-        batch_size=ONESTEP_CONFIG['batch_size'],
+        batch_size=100,
         learning_rate=ONESTEP_CONFIG['learning_rate'],
-        visualize_every=ONESTEP_CONFIG['visualize_every'],
-        plot_every=ONESTEP_CONFIG['plot_every'],
-        train_ratio = ONESTEP_CONFIG['train_ratio']
+        visualize_every=5,
+        plot_every=5
     )
     torch.save(onestep_model.state_dict(), 'onestep_model_final.pth')

@@ -5,7 +5,7 @@ import time
 from tqdm import tqdm
 from data_loader import data_tensor, split_data
 from models import ConvLSTMEncoderDecoder
-from visualization import plot_losses, visualize_predictions_comparison
+from visualization import plot_losses, visualize_predictions_comparison_multistep
 from config import DEVICE, MULTISTEP_CONFIG, ONESTEP_MODEL_PATH
 
 
@@ -39,7 +39,7 @@ def init_multistep_from_onestep(model, onestep_model_path):
 def train_multistep(model=None, epochs=50, batch_size=16,
                                        learning_rate=0.001, input_seq_len=10,
                                        pred_seq_len=10, visualize_every=5,
-                                       plot_every=10, train_ratio=0.8):
+                                       plot_every=10, train_ratio=(0.7, 0.15, 0.15)):
     """Обучение многошаговой модели Encoder-Decoder"""
 
     print("=" * 70)
@@ -52,7 +52,7 @@ def train_multistep(model=None, epochs=50, batch_size=16,
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
 
-    train_data, test_data, _, _ = split_data(data_tensor, train_ratio)
+    train_data, val_data, test_data, _, _, _ = split_data(data_tensor, train_ratio)
 
     train_losses = []
     epoch_train_losses = []
@@ -128,7 +128,7 @@ def train_multistep(model=None, epochs=50, batch_size=16,
 
         if (epoch + 1) % visualize_every == 0:
             print(f"\nВизуализация результатов эпохи {epoch + 1}...")
-            _ = visualize_predictions_comparison(
+            _ = visualize_predictions_comparison_multistep(
                 model, test_input, test_target,
                 model_name="Многошаговая модель",
                 epoch=epoch + 1,

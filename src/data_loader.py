@@ -35,18 +35,28 @@ if DEVICE.type == 'cuda':
     data_tensor = data_tensor.to(DEVICE)
 
 
-def split_data(data_tensor, train_ratio=0.8, random_seed=42):
-    """Разделение данных на train и test"""
+def split_data(data_tensor, ratios=(0.7, 0.1, 0.2), random_seed=42):
+    """
+    Разделение данных на train, validation и test
+    """
     torch.manual_seed(random_seed)
 
     n_samples = data_tensor.shape[1]
     indices = torch.randperm(n_samples)
-    split_idx = int(n_samples * train_ratio)
 
-    train_indices = indices[:split_idx]
-    test_indices = indices[split_idx:]
+    train_ratio = ratios[0]
+    val_ratio = ratios[1]
+    assert abs(sum(ratios) - 1.0) < 1e-10, "Сумма долей должна равняться 1.0"
+
+    train_split_idx = int(n_samples * train_ratio)
+    val_split_idx = int(n_samples * (train_ratio + val_ratio))
+
+    train_indices = indices[:train_split_idx]
+    val_indices = indices[train_split_idx:val_split_idx]
+    test_indices = indices[val_split_idx:]
 
     train_data = data_tensor[:, train_indices, :, :]
+    val_data = data_tensor[:, val_indices, :, :]
     test_data = data_tensor[:, test_indices, :, :]
 
-    return train_data, test_data, train_indices, test_indices
+    return train_data, val_data, test_data, train_indices, val_indices, test_indices
