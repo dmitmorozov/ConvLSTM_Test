@@ -139,17 +139,19 @@ def visualize_predictions_comparison_one_step(model, test_input, test_target,
     return test_pred
 
 
-def plot_losses(train_losses, test_losses, title="График потерь", window=5):
-    """Построение графиков train и test потерь по эпохам"""
+def plot_metrics(train_metrics, test_metrics, title="График потерь", window=5, metric = "Loss (MSE)"):
+    """Построение графиков train и test метрик по эпохам"""
     plt.figure(figsize=(12, 6))
-    epochs = range(1, len(train_losses) + 1)
+    epochs = range(1, len(train_metrics) + 1)
+    if metric == "SSIM":
+        epochs = [x * 5 for x in epochs]
 
-    plt.plot(epochs, train_losses, 'b-', linewidth=2, marker='o', markersize=4, label='Train Loss')
-    plt.plot(epochs, test_losses, 'r-', linewidth=2, marker='s', markersize=4, label='Val Loss')
+    plt.plot(epochs, train_metrics, 'b-', linewidth=2, marker='o', markersize=4, label=f'Train {metric}')
+    plt.plot(epochs, test_metrics, 'r-', linewidth=2, marker='s', markersize=4, label=f'Val {metric}')
 
     plt.title(title, fontsize=14, fontweight='bold')
     plt.xlabel("Эпоха", fontsize=12)
-    plt.ylabel("Loss (MSE)", fontsize=12)
+    plt.ylabel(metric, fontsize=12)
     plt.grid(True, alpha=0.3, linestyle='--')
     plt.legend(fontsize=10)
 
