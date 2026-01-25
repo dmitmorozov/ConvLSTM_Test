@@ -4,7 +4,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 DATA_PATH = "data/mnist_test_seq.npy"
 ONESTEP_MODEL_PATH = "../models/onestep/onestep_model.pth"
-MULTISTEP_MODEL_PATH = "../models/multistep/multistep_model.pth"
+MULTISTEP_MODEL_PATH = "../models/multistep/multistep_model_v2.pth"
 
 ONESTEP_CONFIG = {
     'epochs': 50,

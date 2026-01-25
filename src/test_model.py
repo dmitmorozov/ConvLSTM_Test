@@ -135,7 +135,8 @@ def test_multistep_model(model, test_data, seq_idx=None, input_len=10, pred_len=
     target_seq = test_data[input_len:input_len + pred_len, seq_idx:seq_idx + 1, :, :]
 
     with torch.no_grad():
-        predictions = model(input_seq, num_prediction_steps=pred_len)
+        predictions = model(input_seq,target_sequences=None,num_prediction_steps=pred_len,teacher_forcing_ratio=0.0)
+
 
         input_np = input_seq[:, 0].cpu().numpy()
         target_np = target_seq[:, 0].cpu().numpy()

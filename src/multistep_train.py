@@ -40,7 +40,7 @@ def init_multistep_from_onestep(model, onestep_model_path):
 def train_multistep(model=None, epochs=50, batch_size=16,
                                        learning_rate=0.001, input_seq_len=10,
                                        pred_seq_len=10, visualize_every=5,
-                                       plot_every=10, train_ratio=(0.7, 0.15, 0.15)):
+                                       plot_every=10, train_ratio=(0.7, 0.15, 0.15), teacher_forcing_ratio=0.5):
     """Обучение многошаговой модели Encoder-Decoder"""
 
     print("=" * 70)
@@ -77,6 +77,10 @@ def train_multistep(model=None, epochs=50, batch_size=16,
     test_input = data_tensor[:input_seq_len, :1, :, :]
     test_target = data_tensor[input_seq_len:input_seq_len + pred_seq_len, :1, :, :]
 
+    best_val_loss = float('inf')
+    patience_counter = 0
+    patience = 3
+
     print(f"\nНачинаем обучение...")
     print(f"Входная последовательность: {input_seq_len} кадров")
     print(f"Предсказание: {pred_seq_len} кадров")
@@ -97,6 +101,8 @@ def train_multistep(model=None, epochs=50, batch_size=16,
         n_iterations = train_data.shape[1] // batch_size
         pbar = tqdm(range(n_iterations), desc=f"Эпоха {epoch + 1}/{epochs}")
 
+        current_tf_ratio = max(teacher_forcing_ratio * 0.2, teacher_forcing_ratio * (1 - epoch / epochs))
+
         for i in pbar:
             start_idx = i * batch_size
             end_idx = min(start_idx + batch_size, n_samples)
@@ -111,7 +117,7 @@ def train_multistep(model=None, epochs=50, batch_size=16,
 
             optimizer.zero_grad()
 
-            predictions = model(input_batch, num_prediction_steps=pred_seq_len)
+            predictions = model(input_batch, target_sequences=target_batch, num_prediction_steps=pred_seq_len,teacher_forcing_ratio=current_tf_ratio)
 
             loss = criterion(predictions, target_batch)
 
@@ -157,7 +163,7 @@ def train_multistep(model=None, epochs=50, batch_size=16,
                 input_batch = val_data[:input_seq_len, batch_idx, :, :]
                 target_batch = val_data[input_seq_len:input_seq_len + pred_seq_len, batch_idx, :, :]
 
-                predictions = model(input_batch, num_prediction_steps=pred_seq_len)
+                predictions = model(input_batch, target_sequences=None, num_prediction_steps=pred_seq_len, teacher_forcing_ratio=0.0)
                 loss = criterion(predictions, target_batch)
                 epoch_val_loss += loss.item()
 
@@ -220,9 +226,19 @@ def train_multistep(model=None, epochs=50, batch_size=16,
                              title=f"Многошаговая модель - SSIM (эпоха {epoch + 1}, каждые 5 эпох)", metric="SSIM")
         print("-" * 50)
 
-        if epoch + 1 >= 10 and avg_epoch_train_loss < avg_epoch_test_loss:
-            print(f"Обучение завершено на эпохе {epoch + 1}. train loss < test loss")
-            break
+        if epoch + 1 >= 10:
+            if avg_epoch_test_loss < best_val_loss:
+                best_val_loss = avg_epoch_test_loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f"\n" + "=" * 70)
+                    print(f"РАННЯЯ ОСТАНОВКА")
+                    print(f"Val loss не улучшался {patience} эпох подряд")
+                    print(f"Лучший val loss: {best_val_loss:.6f}")
+                    print("=" * 70)
+                    break
 
     print("\n" + "=" * 70)
     print("ОБУЧЕНИЕ МНОГОШАГОВОЙ МОДЕЛИ ЗАВЕРШЕНО!")

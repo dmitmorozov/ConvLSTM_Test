@@ -117,7 +117,8 @@ class ConvLSTMEncoderDecoder(nn.Module):
         self.conv3 = nn.Conv2d(8, 1, 1, padding=0)
         self.relu = nn.ReLU()
 
-    def forward(self, input_sequences, num_prediction_steps=10):
+    def forward(self, input_sequences, target_sequences=None,
+                num_prediction_steps=10, teacher_forcing_ratio=0.5):
         x = input_sequences.unsqueeze(2)  # [input_seq_len, batch, 1, height, width]
 
         encoder_state1 = None
@@ -139,6 +140,14 @@ class ConvLSTMEncoderDecoder(nn.Module):
         all_predictions = []
         current_input = x[-1]
 
+        apply_tf = (target_sequences is not None and
+                    torch.rand(1).item() < teacher_forcing_ratio)
+
+        if apply_tf and target_sequences is not None:
+            target_frames = target_sequences.unsqueeze(2)
+        else:
+            target_frames = None
+
         for step in range(num_prediction_steps):
             d1, decoder_state1 = self.decoder_lstm1(current_input, decoder_state1)
             d2, decoder_state2 = self.decoder_lstm2(d1, decoder_state2)
@@ -150,7 +159,11 @@ class ConvLSTMEncoderDecoder(nn.Module):
 
             prediction = out.squeeze(1)
             all_predictions.append(prediction)
-            current_input = out
+
+            if apply_tf and step < 2 and target_frames is not None:
+                current_input = target_frames[step]
+            else:
+                current_input = out
 
         return torch.stack(all_predictions, dim=0)
 

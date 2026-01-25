@@ -49,7 +49,7 @@ def visualize_predictions_comparison_multistep(model, test_input, test_target,
     model.eval()
     with torch.no_grad():
         if num_prediction_steps is not None:
-            test_pred = model(test_input, num_prediction_steps=num_prediction_steps)
+            test_pred = model(test_input, target_sequences=None, num_prediction_steps=num_prediction_steps, teacher_forcing_ratio=0.0)
         else:
             test_pred = model(test_input)
 
